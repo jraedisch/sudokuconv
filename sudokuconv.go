@@ -1,3 +1,4 @@
+// Package sudokuconv contains helpers to convert solved 9x9 sudokus to compact byte slices.
 package sudokuconv
 
 import (
@@ -14,6 +15,14 @@ var (
 	decMasks = [8]uint8{128, 64, 32, 16, 8, 4, 2, 1}
 )
 
+// ToBytes converts a 9x9 sudoku board into a compact bit representation.
+// The returned byte slice contains 4 bits for the row where the 9 is in the last column.
+// Then follow 3 bits for each of the other eight columns containing 9s.
+// Then the other values are converted and appended as 3 bits each.
+// For this, 1-8 are converted to 0-7.
+// The last row and column are left out since they can trivially be computed.
+// An error is returned iff the provided board is not correctly solved.
+// TODO: Leave out one value of each the four complete subgrids.
 func ToBytes(board [9][9]int) ([]byte, error) {
 	if !validate(board) {
 		return nil, errors.New("board not solved correctly")
@@ -36,6 +45,8 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 	return bytes[:], nil
 }
 
+// FromBytes reverts ToBytes.
+// An error is returned iff the provided bytes are malformed.
 func FromBytes(bytes []byte) ([9][9]int, error) {
 	if len(bytes) < 9 {
 		return [9][9]int{}, errors.New("not enough bytes")
