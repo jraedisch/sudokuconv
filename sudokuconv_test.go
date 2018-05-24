@@ -23,6 +23,14 @@ var toBytesTests = []struct {
 		in:  working9last,
 		out: workingBytes9last,
 	}, {
+		id:  "working with two subgrids starting with 9",
+		in:  working9firstOf2Grids,
+		out: workingBytes9firstOf2Grids,
+	}, {
+		id:  "working with ideal 9s",
+		in:  workingIdeal9s,
+		out: workingBytesIdeal9s,
+	}, {
 		id:          "encoding empty",
 		in:          emptyBoard,
 		out:         nil,
@@ -62,9 +70,21 @@ var fromBytesTests = []struct {
 	errExpected bool
 }{
 	{
-		id:  "good bytes",
+		id:  "working bytes",
 		in:  workingBytes,
 		out: working,
+	}, {
+		id:  "working bytes with 9 last",
+		in:  workingBytes9last,
+		out: working9last,
+	}, {
+		id:  "working bytes with two subgrids starting with 9",
+		in:  workingBytes9firstOf2Grids,
+		out: working9firstOf2Grids,
+	}, {
+		id:  "working bytes with ideal 9s",
+		in:  workingBytesIdeal9s,
+		out: workingIdeal9s,
 	}, {
 		id:          "empty bytes",
 		in:          []byte{},
@@ -103,7 +123,7 @@ var (
 		{4, 6, 8, 1, 3, 2, 5, 7, 9},
 		{1, 3, 2, 5, 7, 9, 4, 6, 8},
 	}
-	workingBytes = []byte{113, 153, 241, 95, 172, 104, 216, 209, 29, 17, 245, 158, 231, 8, 206, 16, 185, 11, 220, 230, 119, 132, 239, 8, 204}
+	workingBytes = []byte{113, 153, 241, 95, 163, 70, 198, 136, 232, 143, 172, 174, 17, 156, 33, 114, 23, 185, 204, 239, 9, 222, 17, 152}
 	working9last = [9][9]int{
 		{9, 8, 7, 6, 5, 4, 3, 2, 1},
 		{6, 5, 4, 3, 2, 1, 9, 8, 7},
@@ -115,8 +135,32 @@ var (
 		{1, 3, 2, 5, 7, 9, 4, 6, 8},
 		{4, 6, 8, 1, 3, 2, 5, 7, 9},
 	}
-	workingBytes9last = []byte{129, 153, 241, 95, 172, 104, 216, 209, 29, 17, 245, 158, 231, 8, 206, 16, 185, 11, 220, 230, 119, 132, 17, 153, 208}
-	rowWithTwo9s      = [9][9]int{
+	workingBytes9last     = []byte{129, 153, 241, 95, 163, 70, 198, 136, 232, 143, 172, 174, 17, 156, 33, 114, 23, 185, 204, 239, 8, 35, 51, 160}
+	working9firstOf2Grids = [9][9]int{
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{3, 2, 1, 8, 9, 7, 6, 5, 4},
+		{2, 1, 3, 9, 8, 6, 7, 4, 5},
+		{8, 9, 6, 7, 4, 5, 2, 1, 3},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+	}
+	workingBytes9firstOf2Grids = []byte{129, 163, 61, 95, 163, 70, 198, 136, 232, 143, 172, 11, 220, 253, 206, 17, 156, 33, 121, 157, 225, 4, 102, 116}
+	workingIdeal9s             = [9][9]int{
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{3, 2, 1, 8, 9, 7, 6, 5, 4},
+		{8, 9, 6, 7, 4, 5, 2, 1, 3},
+		{2, 1, 3, 9, 8, 6, 7, 4, 5},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+	}
+	workingBytesIdeal9s = []byte{140, 33, 125, 88, 200, 255, 88, 209, 68, 125, 101, 112, 130, 23, 185, 231, 8, 94, 103, 120, 65, 25, 157}
+	rowWithTwo9s        = [9][9]int{
 		{9, 9, 7, 6, 5, 4, 3, 2, 1},
 		{6, 5, 4, 3, 2, 1, 9, 8, 7},
 		{3, 2, 1, 9, 8, 7, 6, 5, 4},
@@ -180,7 +224,7 @@ func TestToBytes(t *testing.T) {
 			t.Errorf("unexpected error for %s:\n%v\n", test.id, err)
 		}
 		if !reflect.DeepEqual(test.out, out) {
-			t.Errorf("unexpected bytes for %s:\n%v\n%v\n", test.id, test.out, out)
+			t.Errorf("unexpected output for %s:\n%v\n%v\n", test.id, test.out, out)
 		}
 	}
 }
@@ -192,7 +236,7 @@ func TestFromBytes(t *testing.T) {
 			t.Errorf("unexpected error for %s:\n%v\n", test.id, err)
 		}
 		if !reflect.DeepEqual(test.out, out) {
-			t.Errorf("unexpected bytes for %s:\n%v\n%v\n", test.id, test.out, out)
+			t.Errorf("unexpected output for %s:\n%v\n%v\n", test.id, test.out, out)
 		}
 	}
 }

@@ -2,6 +2,7 @@
 package sudokuconv
 
 import (
+	"math"
 	"math/bits"
 	"sort"
 
@@ -16,21 +17,20 @@ var (
 )
 
 // ToBytes converts a 9x9 sudoku board into a compact bit representation.
+// Size is 23 or 24 bytes depending on where the 9s are.
 // The returned byte slice contains 4 bits for the row where the 9 is in the last column.
 // Then follow 3 bits for each of the other eight columns containing 9s.
 // Then the other values are converted and appended as 3 bits each.
 // For this, 1-8 are converted to 0-7.
 // The last row and column are left out since they can trivially be computed.
 // An error is returned iff the provided board is not correctly solved.
-//
-// TODO: Leave out one value of each of the four complete subgrids.
 func ToBytes(board [9][9]int) ([]byte, error) {
 	if !validate(board) {
 		return nil, errors.New("board not solved correctly")
 	}
 	im := prepare(board)
 
-	bytes := [25]byte{}
+	bytes := [24]byte{}
 	bytes[0] = im.RowWith9Last << 4
 
 	bitIdx := uint(4)
@@ -43,7 +43,7 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 		}
 	}
 
-	return bytes[:bitIdx/8+1], nil
+	return bytes[:int(math.Ceil(float64(bitIdx)/8))], nil
 }
 
 // FromBytes reverts ToBytes.
@@ -114,10 +114,6 @@ func (im *intermediate) toBoard() ([9][9]int, error) {
 	return board, nil
 }
 
-func includeVal(rowIdx, colIdx, val int) bool {
-	return rowIdx < 8 && colIdx < 8 && val != 9
-}
-
 func prepare(board [9][9]int) *intermediate {
 	im := intermediate{}
 
@@ -127,7 +123,7 @@ func prepare(board [9][9]int) *intermediate {
 				im.RowWith9Last = uint8(rowIdx)
 			} else if val == 9 {
 				im.NineIndices = append(im.NineIndices, uint8(colIdx))
-			} else if rowIdx < 8 && colIdx < 8 {
+			} else if includeVal(rowIdx, colIdx, val) {
 				// 1 is subtracted to have values from 0-7
 				im.Values = append(im.Values, uint8(val-1))
 			}
@@ -135,6 +131,15 @@ func prepare(board [9][9]int) *intermediate {
 	}
 
 	return &im
+}
+
+func includeVal(rowIdx, colIdx, val int) bool {
+	return !firstInBlock(rowIdx, colIdx) && rowIdx < 8 && colIdx < 8 && val != 9
+}
+
+func firstInBlock(rowIdx, colIdx int) bool {
+	block := 0 + uint(1)<<uint(8-rowIdx) + uint(1)<<uint(8-colIdx)
+	return block == 512 || block == 288 || block == 64
 }
 
 func validate(board [9][9]int) bool {
@@ -163,6 +168,19 @@ func validateGroup(group [9]int) bool {
 }
 
 func solve(board [9][9]int) [9][9]int {
+	grids := [2][2][]int{}
+	for rowIdx := 0; rowIdx < 6; rowIdx++ {
+		for colIdx := 0; colIdx < 6; colIdx++ {
+			grids[rowIdx/3][colIdx/3] = append(grids[rowIdx/3][colIdx/3], board[rowIdx][colIdx])
+		}
+	}
+	for rowIdx, row := range grids {
+		for colIdx, grid := range row {
+			gridA := [9]int{}
+			copy(gridA[:], grid)
+			board[rowIdx*3][colIdx*3] = lastMissing(gridA)
+		}
+	}
 	for rowIdx, row := range board {
 		if rowIdx < 8 {
 			board[rowIdx][8] = lastMissing(row)
