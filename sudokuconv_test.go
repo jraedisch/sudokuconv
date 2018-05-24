@@ -19,6 +19,10 @@ var toBytesTests = []struct {
 		in:  working,
 		out: workingBytes,
 	}, {
+		id:  "working with 9 last",
+		in:  working9last,
+		out: workingBytes9last,
+	}, {
 		id:          "encoding empty",
 		in:          emptyBoard,
 		out:         nil,
@@ -43,6 +47,11 @@ var toBytesTests = []struct {
 		in:          withMinus1,
 		out:         nil,
 		errExpected: true,
+	}, {
+		id:          "wrong cols",
+		in:          wrongCols,
+		out:         nil,
+		errExpected: true,
 	},
 }
 
@@ -53,6 +62,7 @@ var fromBytesTests = []struct {
 	errExpected bool
 }{
 	{
+		id:  "good bytes",
 		in:  workingBytes,
 		out: working,
 	}, {
@@ -68,6 +78,11 @@ var fromBytesTests = []struct {
 	}, {
 		id:          "wrong bytes",
 		in:          []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+		out:         emptyBoard,
+		errExpected: true,
+	}, {
+		id:          "bytes leading to incorrect board",
+		in:          []byte{129, 154, 241, 95, 172, 104, 216, 209, 29, 17, 245, 158, 231, 8, 206, 16, 185, 11, 220, 230, 119, 132, 17, 153, 208},
 		out:         emptyBoard,
 		errExpected: true,
 	},
@@ -89,7 +104,19 @@ var (
 		{1, 3, 2, 5, 7, 9, 4, 6, 8},
 	}
 	workingBytes = []byte{113, 153, 241, 95, 172, 104, 216, 209, 29, 17, 245, 158, 231, 8, 206, 16, 185, 11, 220, 230, 119, 132, 239, 8, 204}
-	rowWithTwo9s = [9][9]int{
+	working9last = [9][9]int{
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{3, 2, 1, 9, 8, 7, 6, 5, 4},
+		{8, 9, 6, 7, 4, 5, 2, 1, 3},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{2, 1, 3, 8, 9, 6, 7, 4, 5},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+	}
+	workingBytes9last = []byte{129, 153, 241, 95, 172, 104, 216, 209, 29, 17, 245, 158, 231, 8, 206, 16, 185, 11, 220, 230, 119, 132, 17, 153, 208}
+	rowWithTwo9s      = [9][9]int{
 		{9, 9, 7, 6, 5, 4, 3, 2, 1},
 		{6, 5, 4, 3, 2, 1, 9, 8, 7},
 		{3, 2, 1, 9, 8, 7, 6, 5, 4},
@@ -130,6 +157,17 @@ var (
 		{7, 4, 5, 2, 1, 3, 8, 9, 6},
 		{2, 1, 3, 8, 9, 6, 7, 4, 5},
 		{5, -1, 9, 4, 6, 8, 1, 3, 2},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+	}
+	wrongCols = [9][9]int{
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{3, 2, 1, 9, 8, 7, 6, 5, 4},
+		{9, 8, 6, 7, 5, 4, 3, 2, 1},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{2, 1, 3, 8, 9, 6, 7, 4, 5},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
 		{4, 6, 8, 1, 3, 2, 5, 7, 9},
 		{1, 3, 2, 5, 7, 9, 4, 6, 8},
 	}

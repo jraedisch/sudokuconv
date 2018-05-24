@@ -43,7 +43,7 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 		}
 	}
 
-	return bytes[:], nil
+	return bytes[:bitIdx/8+1], nil
 }
 
 // FromBytes reverts ToBytes.
@@ -102,7 +102,7 @@ func (im *intermediate) toBoard() ([9][9]int, error) {
 	valLen := len(im.Values)
 	for rowIdx, row := range board {
 		for colIdx, val := range row {
-			if rowIdx < 8 && colIdx < 8 && val != 9 {
+			if includeVal(rowIdx, colIdx, val) {
 				if valIdx >= valLen {
 					return [9][9]int{}, errors.New("not enough values")
 				}
@@ -112,6 +112,10 @@ func (im *intermediate) toBoard() ([9][9]int, error) {
 		}
 	}
 	return board, nil
+}
+
+func includeVal(rowIdx, colIdx, val int) bool {
+	return rowIdx < 8 && colIdx < 8 && val != 9
 }
 
 func prepare(board [9][9]int) *intermediate {
