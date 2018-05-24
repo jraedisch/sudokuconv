@@ -22,7 +22,8 @@ var (
 // For this, 1-8 are converted to 0-7.
 // The last row and column are left out since they can trivially be computed.
 // An error is returned iff the provided board is not correctly solved.
-// TODO: Leave out one value of each the four complete subgrids.
+//
+// TODO: Leave out one value of each of the four complete subgrids.
 func ToBytes(board [9][9]int) ([]byte, error) {
 	if !validate(board) {
 		return nil, errors.New("board not solved correctly")
