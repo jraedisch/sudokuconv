@@ -1,8 +1,23 @@
 package sudokuconv
 
-import "math/bits"
+import (
+	"math/bits"
+	"sort"
+
+	"github.com/pkg/errors"
+)
+
+var (
+	// encMasks extract the 3 bits of ints < 8
+	encMasks = [3]uint8{4, 2, 1}
+	// decMasks extract each bit of a byte/uint8
+	decMasks = [8]uint8{128, 64, 32, 16, 8, 4, 2, 1}
+)
 
 func ToBytes(board [9][9]int) ([]byte, error) {
+	if !validate(board) {
+		return nil, errors.New("board not solved correctly")
+	}
 	im := prepare(board)
 
 	bytes := [25]byte{}
@@ -10,7 +25,6 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 
 	bitIdx := uint(4)
 	var shiftL uint8 = 3
-	var encMasks = [3]uint8{4, 2, 1}
 	for _, v := range append(im.NineIndices, im.Values...) {
 		for shiftR, mask := range encMasks {
 			bytes[bitIdx/8] = bytes[bitIdx/8] + (v&mask)>>uint8(2-shiftR)<<shiftL
@@ -23,14 +37,16 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 }
 
 func FromBytes(bytes []byte) ([9][9]int, error) {
+	if len(bytes) < 9 {
+		return [9][9]int{}, errors.New("not enough bytes")
+	}
 	var initialMaskIdx uint = 4
 	var digitIdx uint
 	values := []uint8{}
 	var currentValue uint8
-	var deserMasks = [8]uint8{128, 64, 32, 16, 8, 4, 2, 1}
 	for _, b := range bytes {
 		for maskIdx := initialMaskIdx; maskIdx < 8; maskIdx++ {
-			currentValue = currentValue + (b&deserMasks[maskIdx])>>(7-maskIdx)<<(2-digitIdx)
+			currentValue = currentValue + (b&decMasks[maskIdx])>>(7-maskIdx)<<(2-digitIdx)
 			digitIdx = (digitIdx + 1) % 3
 			if digitIdx == 0 {
 				values = append(values, currentValue)
@@ -39,11 +55,19 @@ func FromBytes(bytes []byte) ([9][9]int, error) {
 		}
 		initialMaskIdx = 0
 	}
-	b := (&intermediate{
+	im := &intermediate{
 		RowWith9Last: bytes[0] >> 4,
 		NineIndices:  values[:8],
-		Values:       values[8:]}).ToBoard()
-	return solve(b), nil
+		Values:       values[8:]}
+	board, err := im.toBoard()
+	if err != nil {
+		return [9][9]int{}, errors.Wrap(err, "incomplete bytes")
+	}
+	board = solve(board)
+	if !validate(board) {
+		return [9][9]int{}, errors.New("bytes lead to incorrect board")
+	}
+	return board, nil
 }
 
 type intermediate struct {
@@ -52,26 +76,30 @@ type intermediate struct {
 	Values       []uint8
 }
 
-func (im *intermediate) ToBoard() [9][9]int {
-	b := [9][9]int{}
-	b[im.RowWith9Last][8] = 9
+func (im *intermediate) toBoard() ([9][9]int, error) {
+	board := [9][9]int{}
+	board[im.RowWith9Last][8] = 9
 	for rowIdx, colIdx := range im.NineIndices {
 		if rowIdx >= int(im.RowWith9Last) {
-			b[rowIdx+1][colIdx] = 9
+			board[rowIdx+1][colIdx] = 9
 		} else {
-			b[rowIdx][colIdx] = 9
+			board[rowIdx][colIdx] = 9
 		}
 	}
 	valIdx := 0
-	for rowIdx, row := range b {
+	valLen := len(im.Values)
+	for rowIdx, row := range board {
 		for colIdx, val := range row {
 			if rowIdx < 8 && colIdx < 8 && val != 9 {
-				b[rowIdx][colIdx] = int(im.Values[valIdx]) + 1
+				if valIdx >= valLen {
+					return [9][9]int{}, errors.New("not enough values")
+				}
+				board[rowIdx][colIdx] = int(im.Values[valIdx]) + 1
 				valIdx++
 			}
 		}
 	}
-	return b
+	return board, nil
 }
 
 func prepare(board [9][9]int) *intermediate {
@@ -93,32 +121,61 @@ func prepare(board [9][9]int) *intermediate {
 	return &im
 }
 
-func solve(board [9][9]int) [9][9]int {
-	for rowIdx, row := range board {
-		if rowIdx < 8 {
-			board[rowIdx][8] = missing(row)
+func validate(board [9][9]int) bool {
+	for _, row := range board {
+		if !validateGroup(row) {
+			return false
 		}
 	}
 	for colIdx := 0; colIdx < 9; colIdx++ {
-		col := [9]int{
-			board[0][colIdx],
-			board[1][colIdx],
-			board[2][colIdx],
-			board[3][colIdx],
-			board[4][colIdx],
-			board[5][colIdx],
-			board[6][colIdx],
-			board[7][colIdx],
+		if !validateGroup(extractCol(board, colIdx)) {
+			return false
 		}
-		board[8][colIdx] = missing(col)
+	}
+	return true
+}
+
+func validateGroup(group [9]int) bool {
+	sorted := group[:]
+	sort.Ints(sorted)
+	for idx, val := range sorted {
+		if val != idx+1 {
+			return false
+		}
+	}
+	return true
+}
+
+func solve(board [9][9]int) [9][9]int {
+	for rowIdx, row := range board {
+		if rowIdx < 8 {
+			board[rowIdx][8] = lastMissing(row)
+		}
+	}
+	for colIdx := 0; colIdx < 9; colIdx++ {
+		board[8][colIdx] = lastMissing(extractCol(board, colIdx))
 	}
 	return board
 }
 
-func missing(group [9]int) int {
+func lastMissing(group [9]int) int {
 	var taken uint8
 	for _, val := range group {
 		taken = taken + 1<<(uint(val)-1)
 	}
 	return bits.TrailingZeros8(taken^255) + 1
+}
+
+func extractCol(board [9][9]int, idx int) [9]int {
+	return [9]int{
+		board[0][idx],
+		board[1][idx],
+		board[2][idx],
+		board[3][idx],
+		board[4][idx],
+		board[5][idx],
+		board[6][idx],
+		board[7][idx],
+		board[8][idx],
+	}
 }
