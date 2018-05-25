@@ -25,7 +25,7 @@ func Example() {
 	bytes, err := sudokuconv.ToBytes(board)
 
 	if err != nil {
-		// board is not well formed
+		// board is not solved correctly
 	}
 
 	board2, err := sudokuconv.FromBytes(bytes)
