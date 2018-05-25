@@ -10,17 +10,17 @@ import (
 )
 
 var (
-	// encMasks extract the 3 bits of ints < 8
-	encMasks = [3]uint8{4, 2, 1}
-	// decMasks extract each bit of a byte/uint8
-	decMasks = [8]uint8{128, 64, 32, 16, 8, 4, 2, 1}
+	// symbolMasks extract 3 bits a symbol (must be zero based and <8)
+	symbolMasks = [3]uint8{4, 2, 1}
+	// bitMasks extract each bit of a byte/uint8
+	bitMasks = [8]uint8{128, 64, 32, 16, 8, 4, 2, 1}
 )
 
 // ToBytes converts a 9x9 sudoku board into a compact bit representation.
 // Size is 23 or 24 bytes depending on where the 9s are.
 // The returned byte slice contains 4 bits for the row where the 9 is in the last column.
 // Then follow 3 bits for each of the other eight columns containing 9s.
-// Then the other values are converted and appended as 3 bits each.
+// Then the other symbols are converted and appended as 3 bits each.
 // For this, 1-8 are converted to 0-7.
 // The last row and column are left out since they can trivially be computed.
 // An error is returned iff the provided board is not correctly solved.
@@ -28,68 +28,85 @@ func ToBytes(board [9][9]int) ([]byte, error) {
 	if !validate(board) {
 		return nil, errors.New("board not solved correctly")
 	}
-	im := prepare(board)
 
+	im := toIntermediate(board)
 	bytes := [24]byte{}
-	bytes[0] = im.RowWith9Last << 4
-
 	bitIdx := uint(4)
-	var shiftL uint8 = 3
-	for _, v := range append(im.NineIndices, im.Values...) {
-		for shiftR, mask := range encMasks {
-			bytes[bitIdx/8] = bytes[bitIdx/8] + (v&mask)>>uint8(2-shiftR)<<shiftL
-			shiftL = (shiftL - 1) % 8
+	bytes[0] = im.RowWith9Last << bitIdx
+
+	for _, v := range append(im.NineIndices, im.OtherSymbols...) {
+		for idxInSymbol, mask := range symbolMasks {
+			idxInByte := 7 - bitIdx%8
+			bytes[bitIdx/8] = bytes[bitIdx/8] + (v&mask)>>uint8(2-idxInSymbol)<<idxInByte
 			bitIdx++
 		}
 	}
 
-	return bytes[:int(math.Ceil(float64(bitIdx)/8))], nil
+	return bytes[:byteSize(bitIdx)], nil
 }
 
-// FromBytes reverts ToBytes.
+func byteSize(bitSize uint) int {
+	return int(math.Ceil(float64(bitSize) / 8))
+}
+
+// FromBytes converts bytes (see ToBytes) back to board.
 // An error is returned iff the provided bytes are malformed.
 func FromBytes(bytes []byte) ([9][9]int, error) {
 	if len(bytes) < 9 {
 		return [9][9]int{}, errors.New("not enough bytes")
 	}
-	var initialMaskIdx uint = 4
-	var digitIdx uint
-	values := []uint8{}
-	var currentValue uint8
-	for _, b := range bytes {
-		for maskIdx := initialMaskIdx; maskIdx < 8; maskIdx++ {
-			currentValue = currentValue + (b&decMasks[maskIdx])>>(7-maskIdx)<<(2-digitIdx)
-			digitIdx = (digitIdx + 1) % 3
-			if digitIdx == 0 {
-				values = append(values, currentValue)
-				currentValue = 0
-			}
-		}
-		initialMaskIdx = 0
-	}
+
+	symbols := toSymbols(bytes)
 	im := &intermediate{
 		RowWith9Last: bytes[0] >> 4,
-		NineIndices:  values[:8],
-		Values:       values[8:]}
+		NineIndices:  symbols[:8],
+		OtherSymbols: symbols[8:]}
 	board, err := im.toBoard()
 	if err != nil {
 		return [9][9]int{}, errors.Wrap(err, "incomplete bytes")
 	}
-	board = solve(board)
+
+	board = solveNaively(board)
 	if !validate(board) {
 		return [9][9]int{}, errors.New("bytes lead to incorrect board")
 	}
+
 	return board, nil
+}
+
+func toSymbols(bytes []byte) []uint8 {
+	var initialIdxInByte uint = 4
+	var idxInSymbol uint
+	symbols := []uint8{}
+	var currentValue uint8
+	for _, b := range bytes {
+		for idxInByte := initialIdxInByte; idxInByte < 8; idxInByte++ {
+			bit := b & bitMasks[idxInByte]
+			currentValue = currentValue + bit>>(7-idxInByte)<<(2-idxInSymbol)
+			idxInSymbol = (idxInSymbol + 1) % 3
+			if idxInSymbol == 0 {
+				symbols = append(symbols, currentValue)
+				currentValue = 0
+			}
+		}
+		initialIdxInByte = 0
+	}
+	return symbols
 }
 
 type intermediate struct {
 	RowWith9Last uint8
 	NineIndices  []uint8
-	Values       []uint8
+	OtherSymbols []uint8
 }
 
 func (im *intermediate) toBoard() ([9][9]int, error) {
 	board := [9][9]int{}
+	board = im.fill9s(board)
+	return im.fillOtherSymbols(board)
+}
+
+func (im *intermediate) fill9s(board [9][9]int) [9][9]int {
 	board[im.RowWith9Last][8] = 9
 	for rowIdx, colIdx := range im.NineIndices {
 		if rowIdx >= int(im.RowWith9Last) {
@@ -98,15 +115,20 @@ func (im *intermediate) toBoard() ([9][9]int, error) {
 			board[rowIdx][colIdx] = 9
 		}
 	}
+	return board
+}
+
+// Fill 9s first!
+func (im *intermediate) fillOtherSymbols(board [9][9]int) ([9][9]int, error) {
 	valIdx := 0
-	valLen := len(im.Values)
+	valLen := len(im.OtherSymbols)
 	for rowIdx, row := range board {
 		for colIdx, val := range row {
 			if includeVal(rowIdx, colIdx, val) {
 				if valIdx >= valLen {
 					return [9][9]int{}, errors.New("not enough values")
 				}
-				board[rowIdx][colIdx] = int(im.Values[valIdx]) + 1
+				board[rowIdx][colIdx] = int(im.OtherSymbols[valIdx]) + 1
 				valIdx++
 			}
 		}
@@ -114,7 +136,7 @@ func (im *intermediate) toBoard() ([9][9]int, error) {
 	return board, nil
 }
 
-func prepare(board [9][9]int) *intermediate {
+func toIntermediate(board [9][9]int) *intermediate {
 	im := intermediate{}
 
 	for rowIdx, row := range board {
@@ -125,7 +147,7 @@ func prepare(board [9][9]int) *intermediate {
 				im.NineIndices = append(im.NineIndices, uint8(colIdx))
 			} else if includeVal(rowIdx, colIdx, val) {
 				// 1 is subtracted to have values from 0-7
-				im.Values = append(im.Values, uint8(val-1))
+				im.OtherSymbols = append(im.OtherSymbols, uint8(val-1))
 			}
 		}
 	}
@@ -167,7 +189,13 @@ func validateGroup(group [9]int) bool {
 	return true
 }
 
-func solve(board [9][9]int) [9][9]int {
+func solveNaively(board [9][9]int) [9][9]int {
+	solved := solveSubgrids(board)
+	solved = solveRows(solved)
+	return solveCols(solved)
+}
+
+func solveSubgrids(board [9][9]int) [9][9]int {
 	grids := [2][2][]int{}
 	for rowIdx := 0; rowIdx < 6; rowIdx++ {
 		for colIdx := 0; colIdx < 6; colIdx++ {
@@ -181,11 +209,21 @@ func solve(board [9][9]int) [9][9]int {
 			board[rowIdx*3][colIdx*3] = lastMissing(gridA)
 		}
 	}
+	return board
+}
+
+// Solve subgrids first!
+func solveRows(board [9][9]int) [9][9]int {
 	for rowIdx, row := range board {
 		if rowIdx < 8 {
 			board[rowIdx][8] = lastMissing(row)
 		}
 	}
+	return board
+}
+
+// Solve rows first!
+func solveCols(board [9][9]int) [9][9]int {
 	for colIdx := 0; colIdx < 9; colIdx++ {
 		board[8][colIdx] = lastMissing(extractCol(board, colIdx))
 	}

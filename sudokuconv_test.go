@@ -2,11 +2,41 @@ package sudokuconv_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/jraedisch/sudokuconv"
 )
+
+func Example() {
+	board := [9][9]int{
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{3, 2, 1, 9, 8, 7, 6, 5, 4},
+		{8, 9, 6, 7, 4, 5, 2, 1, 3},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{2, 1, 3, 8, 9, 6, 7, 4, 5},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+	}
+
+	bytes, err := sudokuconv.ToBytes(board)
+
+	if err != nil {
+		// board is not well formed
+	}
+
+	board2, err := sudokuconv.FromBytes(bytes)
+
+	if err != nil {
+		// bytes are corrupted
+	}
+
+	fmt.Println(reflect.DeepEqual(board, board2))
+	// Output: true
+}
 
 var toBytesTests = []struct {
 	id          string
