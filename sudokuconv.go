@@ -175,6 +175,13 @@ func validate(board [9][9]int) bool {
 			return false
 		}
 	}
+	for x := 0; x < 3; x++ {
+		for y := 0; y < 3; y++ {
+			if !validateGroup(extractGrid(board, x, y)) {
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -250,4 +257,16 @@ func extractCol(board [9][9]int, idx int) [9]int {
 		board[7][idx],
 		board[8][idx],
 	}
+}
+
+func extractGrid(board [9][9]int, x int, y int) [9]int {
+	var grid [9]int
+	var gridIdx int
+	for rowIdx := x * 3; rowIdx < (x+1)*3; rowIdx++ {
+		for colIdx := y * 3; colIdx < (y+1)*3; colIdx++ {
+			grid[gridIdx] = board[rowIdx][colIdx]
+			gridIdx++
+		}
+	}
+	return grid
 }

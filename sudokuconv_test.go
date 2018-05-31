@@ -1,7 +1,6 @@
 package sudokuconv_test
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -90,6 +89,11 @@ var toBytesTests = []struct {
 		in:          wrongCols,
 		out:         nil,
 		errExpected: true,
+	}, {
+		id:          "wrong grids",
+		in:          wrongGrids,
+		out:         nil,
+		errExpected: true,
 	},
 }
 
@@ -139,10 +143,8 @@ var fromBytesTests = []struct {
 }
 
 var (
-	bytesError      = errors.New("bytes are incompatible")
-	validationError = errors.New("board not solved correctly")
-	emptyBoard      = [9][9]int{}
-	working         = [9][9]int{
+	emptyBoard = [9][9]int{}
+	working    = [9][9]int{
 		{9, 8, 7, 6, 5, 4, 3, 2, 1},
 		{6, 5, 4, 3, 2, 1, 9, 8, 7},
 		{3, 2, 1, 9, 8, 7, 6, 5, 4},
@@ -239,6 +241,17 @@ var (
 		{6, 5, 4, 3, 2, 1, 9, 8, 7},
 		{3, 2, 1, 9, 8, 7, 6, 5, 4},
 		{9, 8, 6, 7, 5, 4, 3, 2, 1},
+		{7, 4, 5, 2, 1, 3, 8, 9, 6},
+		{2, 1, 3, 8, 9, 6, 7, 4, 5},
+		{5, 7, 9, 4, 6, 8, 1, 3, 2},
+		{4, 6, 8, 1, 3, 2, 5, 7, 9},
+		{1, 3, 2, 5, 7, 9, 4, 6, 8},
+	}
+	wrongGrids = [9][9]int{
+		{9, 8, 7, 6, 5, 4, 3, 2, 1},
+		{6, 5, 4, 3, 2, 1, 9, 8, 7},
+		{8, 9, 6, 7, 4, 5, 2, 1, 3},
+		{3, 2, 1, 9, 8, 7, 6, 5, 4},
 		{7, 4, 5, 2, 1, 3, 8, 9, 6},
 		{2, 1, 3, 8, 9, 6, 7, 4, 5},
 		{5, 7, 9, 4, 6, 8, 1, 3, 2},
