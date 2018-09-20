@@ -4,8 +4,8 @@ package sudokuconv
 import (
 	"math"
 	"math/bits"
-	"sort"
 
+	"github.com/jraedisch/sudokugen"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +25,7 @@ var (
 // The last row and column are left out since they can trivially be computed.
 // An error is returned iff the provided board is not correctly solved.
 func ToBytes(board [9][9]int) ([]byte, error) {
-	if !validate(board) {
+	if !sudokugen.ValidateSolution(board) {
 		return nil, errors.New("board not solved correctly")
 	}
 
@@ -52,7 +52,7 @@ func byteSize(bitSize uint) int {
 // FromBytes converts bytes (see ToBytes) back to board.
 // An error is returned iff the provided bytes are malformed.
 func FromBytes(bytes []byte) ([9][9]int, error) {
-	if len(bytes) < 9 {
+	if len(bytes) < 23 {
 		return [9][9]int{}, errors.New("not enough bytes")
 	}
 
@@ -67,7 +67,7 @@ func FromBytes(bytes []byte) ([9][9]int, error) {
 	}
 
 	board = solveNaively(board)
-	if !validate(board) {
+	if !sudokugen.ValidateSolution(board) {
 		return [9][9]int{}, errors.New("bytes lead to incorrect board")
 	}
 
@@ -164,38 +164,6 @@ func firstInBlock(rowIdx, colIdx int) bool {
 	return block == 512 || block == 288 || block == 64
 }
 
-func validate(board [9][9]int) bool {
-	for _, row := range board {
-		if !validateGroup(row) {
-			return false
-		}
-	}
-	for colIdx := 0; colIdx < 9; colIdx++ {
-		if !validateGroup(extractCol(board, colIdx)) {
-			return false
-		}
-	}
-	for x := 0; x < 3; x++ {
-		for y := 0; y < 3; y++ {
-			if !validateGroup(extractGrid(board, x, y)) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func validateGroup(group [9]int) bool {
-	sorted := group[:]
-	sort.Ints(sorted)
-	for idx, val := range sorted {
-		if val != idx+1 {
-			return false
-		}
-	}
-	return true
-}
-
 func solveNaively(board [9][9]int) [9][9]int {
 	solved := solveSubgrids(board)
 	solved = solveRows(solved)
@@ -257,16 +225,4 @@ func extractCol(board [9][9]int, idx int) [9]int {
 		board[7][idx],
 		board[8][idx],
 	}
-}
-
-func extractGrid(board [9][9]int, x int, y int) [9]int {
-	var grid [9]int
-	var gridIdx int
-	for rowIdx := x * 3; rowIdx < (x+1)*3; rowIdx++ {
-		for colIdx := y * 3; colIdx < (y+1)*3; colIdx++ {
-			grid[gridIdx] = board[rowIdx][colIdx]
-			gridIdx++
-		}
-	}
-	return grid
 }

@@ -131,7 +131,7 @@ var fromBytesTests = []struct {
 		errExpected: true,
 	}, {
 		id:          "wrong bytes",
-		in:          []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
+		in:          []byte{129, 153, 241, 95, 163, 70, 198, 136, 232, 143, 172, 174, 17, 156, 33, 114, 23, 185, 204, 239, 8, 35, 51},
 		out:         emptyBoard,
 		errExpected: true,
 	}, {
